@@ -5,7 +5,7 @@ import { initializeApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth'
 import type { User } from 'firebase/auth'
 import { collection, doc, getFirestore, onSnapshot, orderBy, query, serverTimestamp, setDoc } from 'firebase/firestore'
-import { ChevronDown, Dumbbell, LayoutGrid, Menu, Moon, PanelLeftClose, PanelLeftOpen, Pencil, Plus, Sun, Utensils, X } from 'lucide-react'
+import { ArrowDown, ArrowUp, ChevronDown, Dumbbell, LayoutGrid, Menu, Moon, PanelLeftClose, PanelLeftOpen, Pencil, Plus, Sun, Trash2, Utensils, X } from 'lucide-react'
 import { blankExercise, demoKeys, demoSources, detailsLimit, formatWorkout, isDemoUrl, parseWorkout } from './workout'
 import type { DemoSource, Exercise, Workout } from './workout'
 import './style.css'
@@ -312,6 +312,18 @@ function WorkoutFields({ initial, disabled }: { initial: Workout; disabled: bool
   const [rows, setRows] = useState<ExerciseRow[]>(() =>
     initial.exercises.map((exercise, id) => ({ ...exercise, id })))
 
+  function moveExercise(id: number, direction: -1 | 1) {
+    setRows(current => {
+      const from = current.findIndex(exercise => exercise.id === id)
+      const to = from + direction
+      if (from < 0 || to < 0 || to >= current.length) return current
+      const reordered = [...current]
+      reordered[from] = current[to]
+      reordered[to] = current[from]
+      return reordered
+    })
+  }
+
   return <fieldset className="exercise-fields" hidden={disabled} disabled={disabled}>
     <legend>Exercises</legend>
     <label className="phase-option"><input name="warmUp" type="checkbox" defaultChecked={initial.warmUp} /> Warm-up</label>
@@ -323,8 +335,15 @@ function WorkoutFields({ initial, disabled }: { initial: Workout; disabled: bool
           <input name={key} type="url" placeholder="https://" defaultValue={row[key]} />
         </label>)}
       </div>
-      {rows.length > 1 && <button className="text-button" type="button" aria-label={`Remove exercise ${index + 1}`}
-        onClick={() => setRows(current => current.filter(exercise => exercise.id !== row.id))}>Remove</button>}
+      <div className="exercise-actions">
+        <button className="button" type="button" aria-label={`Move exercise ${index + 1} up`}
+          disabled={index === 0} onClick={() => moveExercise(row.id, -1)}><ArrowUp size={14} /> Move up</button>
+        <button className="button" type="button" aria-label={`Move exercise ${index + 1} down`}
+          disabled={index === rows.length - 1} onClick={() => moveExercise(row.id, 1)}><ArrowDown size={14} /> Move down</button>
+        <button className="button remove-exercise" type="button" aria-label={`Remove exercise ${index + 1}`}
+          disabled={rows.length === 1}
+          onClick={() => setRows(current => current.filter(exercise => exercise.id !== row.id))}><Trash2 size={14} /> Remove</button>
+      </div>
     </fieldset>)}
     <button className="button" type="button" onClick={() => {
       const id = nextId.current++

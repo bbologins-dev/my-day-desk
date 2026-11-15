@@ -131,7 +131,10 @@ dialog::backdrop { background: #030812a8; }
 .exercise-fields legend { font-weight: 650; }
 .exercise-fields-row { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
 .exercise-fields-row legend { padding-inline: 4px; color: var(--muted); font-size: 12px; }
-.exercise-fields .button, .exercise-fields .text-button { justify-self: start; }
+.exercise-fields .button { justify-self: start; }
+.exercise-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.exercise-actions .button { min-height: 34px; padding-inline: 8px; font-size: 12px; }
+.exercise-actions .remove-exercise { color: var(--error); }
 .phase-option { display: flex; align-items: center; gap: 8px; }
 .phase-option input { width: auto; min-height: 0; margin: 0; accent-color: var(--accent); }
 .demo-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
