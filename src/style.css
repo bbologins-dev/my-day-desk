@@ -97,6 +97,17 @@ nav a[aria-current="page"]::before { content: ""; position: absolute; left: 0; t
 .plan-body { border-top: 1px solid var(--line); padding: 14px; }
 .plan-body p { white-space: pre-wrap; overflow-wrap: anywhere; margin: 4px 0 14px; }
 .plan-body a { color: var(--accent); text-underline-offset: 2px; }
+.plan-body .demo-link {
+  display: inline-block;
+  padding: 0 7px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--accent-bg);
+  font-size: 12px;
+  font-weight: 650;
+  text-decoration: none;
+}
+.plan-body .demo-link:hover { text-decoration: underline; }
 
 dialog { background: var(--surface); color: var(--text); border: 1px solid var(--line); }
 dialog::backdrop { background: #030812a8; }

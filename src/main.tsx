@@ -42,10 +42,24 @@ function readTheme(key: string): Theme {
 
 function PlanText({ text }: { text: string }) {
   const parts = text.split(/(https?:\/\/[^\s<>"']*[^\s<>"'.,!?;:)\]])/gi)
+  const labels = parts.map((part, index) => {
+    if (index % 2 === 0) return null
+    if (/^https?:\/\/(?:www\.)?kovofitness\.com\//i.test(part)) return 'Kovo'
+    if (/^https?:\/\/(?:www\.)?exsercise\.com\//i.test(part)) return 'Exsercise'
+    return null
+  })
 
-  return <p>{parts.map((part, index) => index % 2 === 0 ? part : (
-    <a key={index} href={part} target="_blank" rel="noopener noreferrer">{part}</a>
-  ))}</p>
+  return <p>{parts.map((part, index) => {
+    if (index % 2 === 0) {
+      if (!labels[index + 1]) return part
+      const textBeforeLink = part.replace(/(^|\n)(?:(?:Kovo Fitness|Exsercise) demo|Demo): $/i, '$1')
+      return labels[index - 1] && /^\r?\n$/.test(textBeforeLink) ? ' ' : textBeforeLink
+    }
+
+    const label = labels[index]
+    return <a key={index} href={part} target="_blank" rel="noopener noreferrer"
+      className={label ? 'demo-link' : undefined} title={label ? part : undefined}>{label ?? part}</a>
+  })}</p>
 }
 
 function App() {
