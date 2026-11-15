@@ -96,6 +96,7 @@ nav a[aria-current="page"]::before { content: ""; position: absolute; left: 0; t
 .plan[open] summary svg { transform: rotate(180deg); }
 .plan-body { border-top: 1px solid var(--line); padding: 14px; }
 .plan-body p { white-space: pre-wrap; overflow-wrap: anywhere; margin: 4px 0 14px; }
+.plan-body a { color: var(--accent); text-underline-offset: 2px; }
 
 dialog { background: var(--surface); color: var(--text); border: 1px solid var(--line); }
 dialog::backdrop { background: #030812a8; }

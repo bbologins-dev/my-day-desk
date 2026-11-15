@@ -40,6 +40,14 @@ function readTheme(key: string): Theme {
   }
 }
 
+function PlanText({ text }: { text: string }) {
+  const parts = text.split(/(https?:\/\/[^\s<>"']*[^\s<>"'.,!?;:)\]])/gi)
+
+  return <p>{parts.map((part, index) => index % 2 === 0 ? part : (
+    <a key={index} href={part} target="_blank" rel="noopener noreferrer">{part}</a>
+  ))}</p>
+}
+
 function App() {
   const [user, setUser] = useState<User | null | undefined>(auth ? undefined : null)
   const [error, setError] = useState('')
@@ -222,8 +230,8 @@ function Workspace({ user, logout, signOutError }: { user: User; logout: () => P
           : visiblePlans.length === 0 ? <div className="empty"><span className="mark"><section.icon size={21} /></span><h3>No {section.singular} plans yet</h3><p>Use “Add {section.singular} plan” to write your first one.</p></div>
           : <div className="plan-list">{visiblePlans.map(plan => <details className="plan" key={plan.id}>
             <summary><strong>{plan.title}</strong>{plan.schedule && <span>{plan.schedule}</span>}<ChevronDown size={17} /></summary>
-            <div className="plan-body"><h3>{section.details}</h3><p>{plan.details}</p>
-              {plan.notes && <><h3>Notes</h3><p>{plan.notes}</p></>}
+            <div className="plan-body"><h3>{section.details}</h3><PlanText text={plan.details} />
+              {plan.notes && <><h3>Notes</h3><PlanText text={plan.notes} /></>}
               <button className="button" onClick={() => setEditor(plan)}><Pencil size={15} />Edit plan</button></div>
           </details>)}</div>}
       </section>
