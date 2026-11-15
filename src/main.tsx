@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { FormEvent } from 'react'
 import { createRoot } from 'react-dom/client'
 import { initializeApp } from 'firebase/app'
@@ -32,8 +32,12 @@ function currentPage(): Kind {
   return location.pathname === '/diet' ? 'diet' : 'fitness'
 }
 
-function initialTheme(): Theme {
-  return document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'
+function readTheme(key: string): Theme {
+  try {
+    return localStorage.getItem(key) === 'light' ? 'light' : 'dark'
+  } catch {
+    return 'dark'
+  }
 }
 
 function App() {
@@ -111,7 +115,8 @@ function MemberGate({ user }: { user: User }) {
 
 function Workspace({ user, logout, signOutError }: { user: User; logout: () => Promise<void>; signOutError: boolean }) {
   const [kind, setKind] = useState(currentPage)
-  const [theme, setTheme] = useState(initialTheme)
+  const themeKey = 'my-day-desk-theme:' + user.uid
+  const [theme, setTheme] = useState(() => readTheme(themeKey))
   const [collapsed, setCollapsed] = useState(false)
   const [plans, setPlans] = useState<Plan[] | null>(null)
   const [loadError, setLoadError] = useState(false)
@@ -119,6 +124,11 @@ function Workspace({ user, logout, signOutError }: { user: User; logout: () => P
   const drawer = useRef<HTMLDialogElement>(null)
   const section = sections[kind]
   const visiblePlans = plans?.filter(plan => plan.kind === kind)
+
+  useLayoutEffect(() => {
+    document.documentElement.dataset.theme = theme
+    return () => { delete document.documentElement.dataset.theme }
+  }, [theme])
 
   useEffect(() => {
     const onBack = () => {
@@ -143,8 +153,7 @@ function Workspace({ user, logout, signOutError }: { user: User; logout: () => P
 
   function toggleTheme() {
     const next = theme === 'dark' ? 'light' : 'dark'
-    document.documentElement.dataset.theme = next
-    try { localStorage.setItem('my-day-desk-theme', next) } catch {}
+    try { localStorage.setItem(themeKey, next) } catch {}
     setTheme(next)
   }
 
