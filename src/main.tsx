@@ -255,7 +255,7 @@ function Workspace({ user, logout, signOutError }: { user: User; logout: () => P
   const [collapsed, setCollapsed] = useState(false)
   const [plans, setPlans] = useState<Plan[] | null>(null)
   const [loadError, setLoadError] = useState(false)
-  const [editor, setEditor] = useState<Plan | 'new' | null>(null)
+  const [editor, setEditor] = useState<Plan | 'new' | 'new-pull' | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const drawer = useRef<HTMLDialogElement>(null)
   const closeMenuButton = useRef<HTMLButtonElement>(null)
@@ -263,6 +263,14 @@ function Workspace({ user, logout, signOutError }: { user: User; logout: () => P
   const nativeLightDismiss = 'closedBy' in HTMLDialogElement.prototype
   const section = sections[kind]
   const visiblePlans = plans?.filter(plan => plan.kind === kind)
+  const workoutOrder = ['push', 'pull', 'leg exercises']
+  const workoutCards = workoutOrder.flatMap(title => {
+    const matches = visiblePlans?.filter(plan => plan.title.trim().toLowerCase() === title) ?? []
+    return matches.length ? matches : title === 'pull' ? [null] : []
+  })
+  const displayedPlans = kind === 'fitness'
+    ? [...workoutCards, ...(visiblePlans ?? []).filter(plan => !workoutOrder.includes(plan.title.trim().toLowerCase()))]
+    : visiblePlans
 
   useLayoutEffect(() => {
     document.documentElement.dataset.theme = theme
@@ -346,7 +354,7 @@ function Workspace({ user, logout, signOutError }: { user: User; logout: () => P
   async function save(plan: Omit<Plan, 'id'>) {
     if (!db) throw new Error('Firestore is not configured')
     const plansRef = collection(db, 'users', user.uid, 'plans')
-    const planRef = editor && editor !== 'new' ? doc(plansRef, editor.id) : doc(plansRef)
+    const planRef = editor && typeof editor !== 'string' ? doc(plansRef, editor.id) : doc(plansRef)
     await setDoc(planRef, { ...plan, updatedAt: serverTimestamp() })
     setEditor(null)
   }
@@ -389,16 +397,24 @@ function Workspace({ user, logout, signOutError }: { user: User; logout: () => P
         {loadError ? <p className="error" role="alert">Plans could not be loaded. Refresh the page to try again.</p>
           : !visiblePlans ? <p className="muted" role="status">Loading plans…</p>
           : visiblePlans.length === 0 ? <div className="empty"><span className="mark"><section.icon size={21} /></span><h3>No {section.singular} plans yet</h3><p>Use “Add {section.singular} plan” to write your first one.</p></div>
-          : <div className="plan-list">{visiblePlans.map(plan => <details className="plan" key={plan.id}>
-            <summary><strong>{plan.title}</strong>{plan.schedule && <span>{plan.schedule}</span>}<ChevronDown size={17} /></summary>
+          : <div className={kind === 'fitness' ? 'workout-board' : 'plan-list'}
+              role={kind === 'fitness' ? 'region' : undefined}
+              aria-label={kind === 'fitness' ? 'Workout plan cards' : undefined}
+              tabIndex={kind === 'fitness' ? 0 : undefined}>
+            {displayedPlans?.map(plan => plan ? <details className="plan" key={plan.id}>
+            <summary><div className="plan-heading"><strong>{plan.title}</strong>{plan.schedule && <span>{plan.schedule}</span>}</div><ChevronDown size={17} /></summary>
             <div className="plan-body"><h3>{section.details}</h3>
               {kind === 'fitness' ? <WorkoutDetails text={plan.details} saveOrder={details => saveExerciseOrder(plan, details)} /> : <PlanText text={plan.details} />}
               {plan.notes && <><h3>Notes</h3><PlanText text={plan.notes} /></>}
               <button className="button" onClick={() => setEditor(plan)}><Pencil size={15} />Edit plan</button></div>
-          </details>)}</div>}
+          </details> : <div className="plan workout-placeholder" key="new-pull">
+            <h3>Pull</h3>
+            <button className="button" onClick={() => setEditor('new-pull')}><Plus size={15} /> Add Pull plan</button>
+          </div>)}</div>}
       </section>
     </main>
-    {editor && <PlanEditor kind={kind} plan={editor === 'new' ? undefined : editor} close={() => setEditor(null)} save={save} />}
+    {editor && <PlanEditor kind={kind} plan={typeof editor === 'string' ? undefined : editor}
+      initialTitle={editor === 'new-pull' ? 'Pull' : undefined} close={() => setEditor(null)} save={save} />}
   </div>
 }
 
@@ -442,7 +458,7 @@ function WorkoutFields({ initial, disabled }: { initial: Workout; disabled: bool
   </fieldset>
 }
 
-function PlanEditor({ kind, plan, close, save }: { kind: Kind; plan?: Plan; close: () => void; save: (plan: Omit<Plan, 'id'>) => Promise<void> }) {
+function PlanEditor({ kind, plan, initialTitle, close, save }: { kind: Kind; plan?: Plan; initialTitle?: string; close: () => void; save: (plan: Omit<Plan, 'id'>) => Promise<void> }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -496,7 +512,7 @@ function PlanEditor({ kind, plan, close, save }: { kind: Kind; plan?: Plan; clos
   return <dialog ref={dialog} className="editor" aria-labelledby="editor-title" onCancel={event => { event.preventDefault(); if (!saving) close() }}>
     <form onSubmit={event => void submit(event)}>
       <div className="editor-header"><h2 id="editor-title">{plan ? 'Edit' : 'Add'} {section.singular} plan</h2><button className="icon-button" type="button" aria-label="Close editor" disabled={saving} onClick={close}><X size={19} /></button></div>
-      <label>Title<input name="title" maxLength={100} required autoFocus defaultValue={plan?.title} /></label>
+      <label>Title<input name="title" maxLength={100} required autoFocus defaultValue={plan?.title ?? initialTitle} /></label>
       <label>Schedule <span className="muted">(optional)</span><input name="schedule" maxLength={100} placeholder={section.schedule} defaultValue={plan?.schedule} /></label>
       {kind === 'fitness' && !plan && <label className="phase-option">
         <input type="checkbox" checked={writeAsText} onChange={event => setWriteAsText(event.target.checked)} /> Write exercises as text

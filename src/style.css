@@ -87,7 +87,21 @@ nav a[aria-current="page"]::before { content: ""; position: absolute; left: 0; t
 .panel-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
 .panel-header p, .empty p { color: var(--muted); font-size: 13px; }
 .empty { display: grid; justify-items: center; gap: 10px; padding: 38px 10px; text-align: center; border: 1px dashed var(--line); border-radius: 9px; }
-.plan + .plan { margin-top: 8px; }
+.plan-list .plan + .plan { margin-top: 8px; }
+.workout-board {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(18rem, calc((100% - 24px) / 3));
+  align-items: start;
+  gap: 12px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding-bottom: 8px;
+}
+.workout-board .plan { min-width: 0; scroll-snap-align: start; }
+.workout-board .plan-heading { display: grid; gap: 4px; }
+.plan-list .plan-heading { display: flex; flex-wrap: wrap; gap: 10px; }
+.workout-placeholder { display: grid; justify-items: start; gap: 12px; padding: 12px; background: var(--field); }
 .plan { border: 1px solid var(--line); border-radius: 8px; overflow: clip; }
 .plan summary { display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--field); overflow-wrap: anywhere; }
 .plan summary::-webkit-details-marker { display: none; }
@@ -114,7 +128,7 @@ nav a[aria-current="page"]::before { content: ""; position: absolute; left: 0; t
 .exercise-list li { padding: 5px 0 5px 4px; border-bottom: 1px solid var(--line); }
 .exercise-list li::marker { color: var(--muted); }
 .exercise-row { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; }
-.exercise-row strong { flex: 1 1 14rem; overflow-wrap: anywhere; }
+.exercise-row strong { flex: 1 1 12rem; min-width: 0; overflow-wrap: anywhere; }
 .exercise-demos { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .exercise-demos .demo-link { display: inline-flex; align-items: center; min-height: 28px; }
 .exercise-grip { display: inline-flex; align-items: center; color: var(--muted); vertical-align: middle; }
@@ -158,6 +172,7 @@ textarea { resize: vertical; }
 .mobile-bar, .drawer { display: none; }
 
 @media (max-width: 700px) {
+  .workout-board { grid-auto-columns: min(85%, 24rem); }
   .workspace, .workspace.collapsed { display: block; }
   .desktop-sidebar { display: none; }
   .mobile-bar { display: flex; align-items: center; gap: 10px; padding: 9px 14px; background: var(--surface); border-bottom: 1px solid var(--line); }
