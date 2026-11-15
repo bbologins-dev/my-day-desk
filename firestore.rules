@@ -1,0 +1,39 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isGoogleUser() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email is string
+        && request.auth.token.firebase.sign_in_provider == 'google.com';
+    }
+
+    function isInvitedOwner(userId) {
+      return isGoogleUser()
+        && userId == request.auth.uid
+        && exists(/databases/$(database)/documents/invitations/$(request.auth.token.email));
+    }
+
+    function validPlan() {
+      let plan = request.resource.data;
+      return plan.keys().hasOnly(['kind', 'title', 'schedule', 'details', 'notes', 'updatedAt'])
+        && plan.kind in ['fitness', 'diet']
+        && plan.title is string && plan.title.size() > 0 && plan.title.size() <= 100
+        && plan.schedule is string && plan.schedule.size() <= 100
+        && plan.details is string && plan.details.size() > 0 && plan.details.size() <= 8000
+        && plan.notes is string && plan.notes.size() <= 4000
+        && plan.updatedAt == request.time;
+    }
+
+    match /invitations/{email} {
+      allow get: if isGoogleUser() && email == request.auth.token.email;
+    }
+
+    match /users/{userId}/plans/{planId} {
+      allow get, list: if isInvitedOwner(userId);
+      allow create: if isInvitedOwner(userId) && validPlan();
+      allow update: if isInvitedOwner(userId) && validPlan()
+        && request.resource.data.kind == resource.data.kind;
+    }
+  }
+}
