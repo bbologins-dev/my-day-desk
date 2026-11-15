@@ -117,6 +117,14 @@ nav a[aria-current="page"]::before { content: ""; position: absolute; left: 0; t
 .exercise-row strong { flex: 1 1 14rem; overflow-wrap: anywhere; }
 .exercise-demos { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .exercise-demos .demo-link { display: inline-flex; align-items: center; min-height: 28px; }
+.exercise-grip { display: inline-flex; align-items: center; color: var(--muted); vertical-align: middle; }
+.exercise-grip[draggable="true"] { cursor: grab; }
+.exercise-grip[draggable="true"]:active { cursor: grabbing; }
+.exercise-order { display: flex; gap: 4px; }
+.exercise-order .icon-button { width: 28px; height: 28px; }
+.exercise-status:not(:empty) { padding-top: 6px; color: var(--muted); font-size: 12px; }
+[data-drop-position="before"] { box-shadow: 0 -2px var(--accent); }
+[data-drop-position="after"] { box-shadow: 0 2px var(--accent); }
 
 dialog { background: var(--surface); color: var(--text); border: 1px solid var(--line); }
 dialog::backdrop { background: #030812a8; }
@@ -166,6 +174,7 @@ textarea { resize: vertical; }
   .panel { padding: 12px; }
   .editor input, .editor textarea { font-size: 16px; }
   .exercise-demos .demo-link { min-height: 34px; padding-inline: 10px; }
+  .exercise-order .icon-button { width: 36px; height: 36px; }
   .editor-actions { position: sticky; bottom: 0; padding: 8px 0; background: var(--surface); }
 }
 

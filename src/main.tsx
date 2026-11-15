@@ -1,11 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { FormEvent } from 'react'
+import type { DragEvent, FormEvent } from 'react'
 import { createRoot } from 'react-dom/client'
 import { initializeApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth'
 import type { User } from 'firebase/auth'
-import { collection, doc, getFirestore, onSnapshot, orderBy, query, serverTimestamp, setDoc } from 'firebase/firestore'
-import { ArrowDown, ArrowUp, ChevronDown, Dumbbell, LayoutGrid, Menu, Moon, PanelLeftClose, PanelLeftOpen, Pencil, Plus, Sun, Trash2, Utensils, X } from 'lucide-react'
+import { collection, doc, getFirestore, onSnapshot, orderBy, query, runTransaction, serverTimestamp, setDoc } from 'firebase/firestore'
+import { ArrowDown, ArrowUp, ChevronDown, Dumbbell, GripVertical, LayoutGrid, Menu, Moon, PanelLeftClose, PanelLeftOpen, Pencil, Plus, Sun, Trash2, Utensils, X } from 'lucide-react'
 import { blankExercise, demoKeys, demoSources, detailsLimit, formatWorkout, isDemoUrl, parseWorkout } from './workout'
 import type { DemoSource, Exercise, Workout } from './workout'
 import './style.css'
@@ -64,15 +64,95 @@ function PlanText({ text }: { text: string }) {
   })}</p>
 }
 
-function WorkoutDetails({ text }: { text: string }) {
+function reorderExercises<T>(items: T[], from: number, to: number) {
+  if (from < 0 || from >= items.length || to < 0 || to >= items.length || from === to) return items
+  const reordered = [...items]
+  const [moved] = reordered.splice(from, 1)
+  reordered.splice(to, 0, moved)
+  return reordered
+}
+
+function useExerciseDrag(onMove: (from: number, to: number) => void) {
+  const source = useRef<number | null>(null)
+  const [target, setTarget] = useState<{ index: number; after: boolean } | null>(null)
+  const clear = () => {
+    source.current = null
+    setTarget(null)
+  }
+
+  function isAfter(event: DragEvent<HTMLElement>) {
+    const rect = event.currentTarget.getBoundingClientRect()
+    return event.clientY >= rect.top + rect.height / 2
+  }
+
+  return {
+    handle(index: number, enabled: boolean) {
+      return {
+        draggable: enabled,
+        onDragStart(event: DragEvent<HTMLElement>) {
+          source.current = index
+          event.dataTransfer.effectAllowed = 'move'
+          event.dataTransfer.setData('text/plain', String(index + 1))
+        },
+        onDragEnd: clear,
+      }
+    },
+    row(index: number) {
+      return {
+        'data-drop-position': target?.index === index ? (target.after ? 'after' : 'before') : undefined,
+        onDragOver(event: DragEvent<HTMLElement>) {
+          if (source.current === null) return
+          event.preventDefault()
+          event.dataTransfer.dropEffect = 'move'
+          const after = isAfter(event)
+          setTarget(previous => previous?.index === index && previous.after === after ? previous : { index, after })
+        },
+        onDragLeave(event: DragEvent<HTMLElement>) {
+          if (event.relatedTarget instanceof Node && event.currentTarget.contains(event.relatedTarget)) return
+          setTarget(previous => previous?.index === index ? null : previous)
+        },
+        onDrop(event: DragEvent<HTMLElement>) {
+          const from = source.current
+          if (from === null) return
+          event.preventDefault()
+          const to = index + Number(isAfter(event)) - Number(from < index)
+          clear()
+          if (from !== index) onMove(from, to)
+        },
+      }
+    },
+  }
+}
+
+function WorkoutDetails({ text, saveOrder }: { text: string; saveOrder: (details: string) => Promise<void> }) {
+  const [saving, setSaving] = useState(false)
+  const [feedback, setFeedback] = useState('')
   const workout = parseWorkout(text)
+  async function move(from: number, to: number) {
+    if (!workout || saving) return
+    const exercises = reorderExercises(workout.exercises, from, to)
+    if (exercises === workout.exercises) return
+    setSaving(true)
+    setFeedback('Saving exercise order…')
+    try {
+      await saveOrder(formatWorkout({ ...workout, exercises }))
+      setFeedback(`${exercises[to].name} moved to position ${to + 1}.`)
+    } catch {
+      setFeedback('Could not save the order. Check the current list and try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
+  const drag = useExerciseDrag((from, to) => void move(from, to))
   if (!workout) return <PlanText text={text} />
 
   return <div className="workout-details">
     {workout.warmUp && <div className="workout-phase">Warm-up</div>}
     <ol className="exercise-list">
-      {workout.exercises.map((exercise, index) => <li key={index}>
+      {workout.exercises.map((exercise, index) => <li key={index} {...drag.row(index)}>
         <div className="exercise-row">
+          {workout.exercises.length > 1 && <span className="exercise-grip" aria-hidden="true"
+            title="Drag to reorder" {...drag.handle(index, !saving)}><GripVertical size={17} /></span>}
           <strong>{exercise.name}</strong>
           <div className="exercise-demos">
             {demoKeys.filter(key => exercise[key]).map(key => <a key={key} className="demo-link"
@@ -81,10 +161,17 @@ function WorkoutDetails({ text }: { text: string }) {
               {demoSources[key].label}
             </a>)}
           </div>
+          {workout.exercises.length > 1 && <div className="exercise-order">
+            <button className="icon-button" type="button" title="Move up" aria-label={`Move exercise ${index + 1} up`}
+              disabled={saving || index === 0} onClick={() => void move(index, index - 1)}><ArrowUp size={14} /></button>
+            <button className="icon-button" type="button" title="Move down" aria-label={`Move exercise ${index + 1} down`}
+              disabled={saving || index === workout.exercises.length - 1} onClick={() => void move(index, index + 1)}><ArrowDown size={14} /></button>
+          </div>}
         </div>
       </li>)}
     </ol>
     {workout.coolDown && <div className="workout-phase">Cool-down</div>}
+    <div role="status" className="exercise-status">{feedback}</div>
   </div>
 }
 
@@ -264,6 +351,16 @@ function Workspace({ user, logout, signOutError }: { user: User; logout: () => P
     setEditor(null)
   }
 
+  async function saveExerciseOrder(plan: Plan, details: string) {
+    if (!db) throw new Error('Firestore is not configured')
+    const planRef = doc(db, 'users', user.uid, 'plans', plan.id)
+    await runTransaction(db, async transaction => {
+      const current = await transaction.get(planRef)
+      if (current.data()?.details !== plan.details) throw new Error('The exercise list changed')
+      transaction.update(planRef, { details, updatedAt: serverTimestamp() })
+    })
+  }
+
   return <div className={'workspace' + (collapsed ? ' collapsed' : '')}>
     <aside className="desktop-sidebar">{sidebar(false)}</aside>
     <header className="mobile-bar"><button className="icon-button" aria-label="Open menu" aria-controls="mobile-navigation"
@@ -295,7 +392,7 @@ function Workspace({ user, logout, signOutError }: { user: User; logout: () => P
           : <div className="plan-list">{visiblePlans.map(plan => <details className="plan" key={plan.id}>
             <summary><strong>{plan.title}</strong>{plan.schedule && <span>{plan.schedule}</span>}<ChevronDown size={17} /></summary>
             <div className="plan-body"><h3>{section.details}</h3>
-              {kind === 'fitness' ? <WorkoutDetails text={plan.details} /> : <PlanText text={plan.details} />}
+              {kind === 'fitness' ? <WorkoutDetails text={plan.details} saveOrder={details => saveExerciseOrder(plan, details)} /> : <PlanText text={plan.details} />}
               {plan.notes && <><h3>Notes</h3><PlanText text={plan.notes} /></>}
               <button className="button" onClick={() => setEditor(plan)}><Pencil size={15} />Edit plan</button></div>
           </details>)}</div>}
@@ -312,23 +409,15 @@ function WorkoutFields({ initial, disabled }: { initial: Workout; disabled: bool
   const [rows, setRows] = useState<ExerciseRow[]>(() =>
     initial.exercises.map((exercise, id) => ({ ...exercise, id })))
 
-  function moveExercise(id: number, direction: -1 | 1) {
-    setRows(current => {
-      const from = current.findIndex(exercise => exercise.id === id)
-      const to = from + direction
-      if (from < 0 || to < 0 || to >= current.length) return current
-      const reordered = [...current]
-      reordered[from] = current[to]
-      reordered[to] = current[from]
-      return reordered
-    })
-  }
+  const moveExercise = (from: number, to: number) => setRows(current => reorderExercises(current, from, to))
+  const drag = useExerciseDrag(moveExercise)
 
   return <fieldset className="exercise-fields" hidden={disabled} disabled={disabled}>
     <legend>Exercises</legend>
     <label className="phase-option"><input name="warmUp" type="checkbox" defaultChecked={initial.warmUp} /> Warm-up</label>
-    {rows.map((row, index) => <fieldset className="exercise-fields-row" key={row.id}>
-      <legend>Exercise {index + 1}</legend>
+    {rows.map((row, index) => <fieldset className="exercise-fields-row" key={row.id} {...drag.row(index)}>
+      <legend>{rows.length > 1 && <span className="exercise-grip" aria-hidden="true"
+        title="Drag to reorder" {...drag.handle(index, !disabled)}><GripVertical size={16} /></span>}Exercise {index + 1}</legend>
       <label>Name<input name="exerciseName" required defaultValue={row.name} /></label>
       <div className="demo-fields">
         {demoKeys.map(key => <label key={key}>{demoSources[key].label} URL
@@ -337,9 +426,9 @@ function WorkoutFields({ initial, disabled }: { initial: Workout; disabled: bool
       </div>
       <div className="exercise-actions">
         <button className="button" type="button" aria-label={`Move exercise ${index + 1} up`}
-          disabled={index === 0} onClick={() => moveExercise(row.id, -1)}><ArrowUp size={14} /> Move up</button>
+          disabled={index === 0} onClick={() => moveExercise(index, index - 1)}><ArrowUp size={14} /> Move up</button>
         <button className="button" type="button" aria-label={`Move exercise ${index + 1} down`}
-          disabled={index === rows.length - 1} onClick={() => moveExercise(row.id, 1)}><ArrowDown size={14} /> Move down</button>
+          disabled={index === rows.length - 1} onClick={() => moveExercise(index, index + 1)}><ArrowDown size={14} /> Move down</button>
         <button className="button remove-exercise" type="button" aria-label={`Remove exercise ${index + 1}`}
           disabled={rows.length === 1}
           onClick={() => setRows(current => current.filter(exercise => exercise.id !== row.id))}><Trash2 size={14} /> Remove</button>
