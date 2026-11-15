@@ -6,6 +6,8 @@ import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signO
 import type { User } from 'firebase/auth'
 import { collection, doc, getFirestore, onSnapshot, orderBy, query, serverTimestamp, setDoc } from 'firebase/firestore'
 import { ChevronDown, Dumbbell, LayoutGrid, Menu, Moon, PanelLeftClose, PanelLeftOpen, Pencil, Plus, Sun, Utensils, X } from 'lucide-react'
+import { blankExercise, demoKeys, demoSources, detailsLimit, formatWorkout, isDemoUrl, parseWorkout } from './workout'
+import type { DemoSource, Exercise, Workout } from './workout'
 import './style.css'
 
 const config = {
@@ -60,6 +62,30 @@ function PlanText({ text }: { text: string }) {
     return <a key={index} href={part} target="_blank" rel="noopener noreferrer"
       className={label ? 'demo-link' : undefined} title={label ? part : undefined}>{label ?? part}</a>
   })}</p>
+}
+
+function WorkoutDetails({ text }: { text: string }) {
+  const workout = parseWorkout(text)
+  if (!workout) return <PlanText text={text} />
+
+  return <div className="workout-details">
+    {workout.warmUp && <div className="workout-phase">Warm-up</div>}
+    <ol className="exercise-list">
+      {workout.exercises.map((exercise, index) => <li key={index}>
+        <div className="exercise-row">
+          <strong>{exercise.name}</strong>
+          <div className="exercise-demos">
+            {demoKeys.filter(key => exercise[key]).map(key => <a key={key} className="demo-link"
+              href={exercise[key]} target="_blank" rel="noopener noreferrer"
+              aria-label={`${demoSources[key].label} demo for ${exercise.name} (opens in a new tab)`}>
+              {demoSources[key].label}
+            </a>)}
+          </div>
+        </div>
+      </li>)}
+    </ol>
+    {workout.coolDown && <div className="workout-phase">Cool-down</div>}
+  </div>
 }
 
 function App() {
@@ -143,7 +169,11 @@ function Workspace({ user, logout, signOutError }: { user: User; logout: () => P
   const [plans, setPlans] = useState<Plan[] | null>(null)
   const [loadError, setLoadError] = useState(false)
   const [editor, setEditor] = useState<Plan | 'new' | null>(null)
+  const [drawerOpen, setDrawerOpen] = useState(false)
   const drawer = useRef<HTMLDialogElement>(null)
+  const closeMenuButton = useRef<HTMLButtonElement>(null)
+  const pointerOnBackdrop = useRef(false)
+  const nativeLightDismiss = 'closedBy' in HTMLDialogElement.prototype
   const section = sections[kind]
   const visiblePlans = plans?.filter(plan => plan.kind === kind)
 
@@ -151,6 +181,15 @@ function Workspace({ user, logout, signOutError }: { user: User; logout: () => P
     document.documentElement.dataset.theme = theme
     return () => { delete document.documentElement.dataset.theme }
   }, [theme])
+
+  useEffect(() => {
+    const mobile = window.matchMedia('(max-width: 700px)')
+    const closeDrawerOnDesktop = () => {
+      if (!mobile.matches) drawer.current?.close()
+    }
+    mobile.addEventListener('change', closeDrawerOnDesktop)
+    return () => mobile.removeEventListener('change', closeDrawerOnDesktop)
+  }, [])
 
   useEffect(() => {
     const onBack = () => {
@@ -196,7 +235,7 @@ function Workspace({ user, logout, signOutError }: { user: User; logout: () => P
         <span className="brand hide-collapsed">My Day Desk</span>
         <div className="side-tools">
           <button className="icon-button" type="button" aria-label={themeLabel} title={themeLabel} onClick={toggleTheme}><ThemeIcon size={17} /></button>
-          <button className="icon-button" type="button" aria-label={mobile ? 'Close menu' : collapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => mobile ? drawer.current?.close() : setCollapsed(!collapsed)}>
+          <button className="icon-button" type="button" ref={mobile ? closeMenuButton : undefined} aria-label={mobile ? 'Close menu' : collapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => mobile ? drawer.current?.close() : setCollapsed(!collapsed)}>
             {mobile ? <X size={17} /> : collapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}
           </button>
         </div>
@@ -227,8 +266,19 @@ function Workspace({ user, logout, signOutError }: { user: User; logout: () => P
 
   return <div className={'workspace' + (collapsed ? ' collapsed' : '')}>
     <aside className="desktop-sidebar">{sidebar(false)}</aside>
-    <header className="mobile-bar"><button className="icon-button" aria-label="Open menu" onClick={() => drawer.current?.showModal()}><Menu size={21} /></button><strong>My Day Desk</strong></header>
-    <dialog className="drawer" ref={drawer} aria-label="Navigation" onClick={event => { if (event.target === event.currentTarget) drawer.current?.close() }}>
+    <header className="mobile-bar"><button className="icon-button" aria-label="Open menu" aria-controls="mobile-navigation"
+      aria-expanded={drawerOpen} onClick={() => {
+        drawer.current?.showModal()
+        closeMenuButton.current?.focus()
+        setDrawerOpen(true)
+      }}><Menu size={21} /></button><strong>My Day Desk</strong></header>
+    <dialog className="drawer" id="mobile-navigation" ref={drawer} aria-label="Navigation" closedby="any"
+      onClose={() => setDrawerOpen(false)}
+      onPointerDown={nativeLightDismiss ? undefined : event => { pointerOnBackdrop.current = event.target === event.currentTarget }}
+      onClick={nativeLightDismiss ? undefined : event => {
+        if (pointerOnBackdrop.current && event.target === event.currentTarget) event.currentTarget.close()
+        pointerOnBackdrop.current = false
+      }}>
       <aside>{sidebar(true)}</aside>
     </dialog>
     <main className="content" id="main-content">
@@ -244,7 +294,8 @@ function Workspace({ user, logout, signOutError }: { user: User; logout: () => P
           : visiblePlans.length === 0 ? <div className="empty"><span className="mark"><section.icon size={21} /></span><h3>No {section.singular} plans yet</h3><p>Use “Add {section.singular} plan” to write your first one.</p></div>
           : <div className="plan-list">{visiblePlans.map(plan => <details className="plan" key={plan.id}>
             <summary><strong>{plan.title}</strong>{plan.schedule && <span>{plan.schedule}</span>}<ChevronDown size={17} /></summary>
-            <div className="plan-body"><h3>{section.details}</h3><PlanText text={plan.details} />
+            <div className="plan-body"><h3>{section.details}</h3>
+              {kind === 'fitness' ? <WorkoutDetails text={plan.details} /> : <PlanText text={plan.details} />}
               {plan.notes && <><h3>Notes</h3><PlanText text={plan.notes} /></>}
               <button className="button" onClick={() => setEditor(plan)}><Pencil size={15} />Edit plan</button></div>
           </details>)}</div>}
@@ -254,20 +305,73 @@ function Workspace({ user, logout, signOutError }: { user: User; logout: () => P
   </div>
 }
 
+type ExerciseRow = Exercise & { id: number }
+
+function WorkoutFields({ initial, disabled }: { initial: Workout; disabled: boolean }) {
+  const nextId = useRef(initial.exercises.length)
+  const [rows, setRows] = useState<ExerciseRow[]>(() =>
+    initial.exercises.map((exercise, id) => ({ ...exercise, id })))
+
+  return <fieldset className="exercise-fields" hidden={disabled} disabled={disabled}>
+    <legend>Exercises</legend>
+    <label className="phase-option"><input name="warmUp" type="checkbox" defaultChecked={initial.warmUp} /> Warm-up</label>
+    {rows.map((row, index) => <fieldset className="exercise-fields-row" key={row.id}>
+      <legend>Exercise {index + 1}</legend>
+      <label>Name<input name="exerciseName" required defaultValue={row.name} /></label>
+      <div className="demo-fields">
+        {demoKeys.map(key => <label key={key}>{demoSources[key].label} URL
+          <input name={key} type="url" placeholder="https://" defaultValue={row[key]} />
+        </label>)}
+      </div>
+      {rows.length > 1 && <button className="text-button" type="button" aria-label={`Remove exercise ${index + 1}`}
+        onClick={() => setRows(current => current.filter(exercise => exercise.id !== row.id))}>Remove</button>}
+    </fieldset>)}
+    <button className="button" type="button" onClick={() => {
+      const id = nextId.current++
+      setRows(current => [...current, { ...blankExercise(), id }])
+    }}><Plus size={15} /> Add exercise</button>
+    <label className="phase-option"><input name="coolDown" type="checkbox" defaultChecked={initial.coolDown} /> Cool-down</label>
+  </fieldset>
+}
+
 function PlanEditor({ kind, plan, close, save }: { kind: Kind; plan?: Plan; close: () => void; save: (plan: Omit<Plan, 'id'>) => Promise<void> }) {
   const dialog = useRef<HTMLDialogElement>(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const section = sections[kind]
+  const [workout] = useState(() => {
+    if (kind !== 'fitness') return null
+    return plan ? parseWorkout(plan.details) : { warmUp: false, coolDown: false, exercises: [blankExercise()] }
+  })
+  const [writeAsText, setWriteAsText] = useState(false)
   useEffect(() => { dialog.current?.showModal() }, [])
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const data = new FormData(event.currentTarget)
     const title = String(data.get('title')).trim()
-    const details = String(data.get('details')).trim()
+    let details = String(data.get('details') ?? '').trim()
+    if (workout && !writeAsText) {
+      const urls = (key: DemoSource) => data.getAll(key).map(value => String(value).trim())
+      const kovo = urls('kovo')
+      const exsercise = urls('exsercise')
+      const exercises = data.getAll('exerciseName').map((name, index) => ({
+        name: String(name).trim(), kovo: kovo[index], exsercise: exsercise[index],
+      }))
+      const invalidRow = exercises.findIndex(exercise => !exercise.name
+        || demoKeys.some(key => exercise[key] && !isDemoUrl(exercise[key], key)))
+      if (invalidRow !== -1) {
+        setError(`Check the name and demo URLs for exercise ${invalidRow + 1}.`)
+        return
+      }
+      details = formatWorkout({ warmUp: data.has('warmUp'), coolDown: data.has('coolDown'), exercises })
+    }
     if (!title || !details) {
       setError('Enter a title and plan details.')
+      return
+    }
+    if (details.length > detailsLimit) {
+      setError('Shorten the exercise names or demo URLs before saving this plan.')
       return
     }
     setSaving(true)
@@ -286,7 +390,14 @@ function PlanEditor({ kind, plan, close, save }: { kind: Kind; plan?: Plan; clos
       <div className="editor-header"><h2 id="editor-title">{plan ? 'Edit' : 'Add'} {section.singular} plan</h2><button className="icon-button" type="button" aria-label="Close editor" disabled={saving} onClick={close}><X size={19} /></button></div>
       <label>Title<input name="title" maxLength={100} required autoFocus defaultValue={plan?.title} /></label>
       <label>Schedule <span className="muted">(optional)</span><input name="schedule" maxLength={100} placeholder={section.schedule} defaultValue={plan?.schedule} /></label>
-      <label>{section.details}<textarea name="details" rows={5} maxLength={8000} required placeholder={section.example} defaultValue={plan?.details} /></label>
+      {kind === 'fitness' && !plan && <label className="phase-option">
+        <input type="checkbox" checked={writeAsText} onChange={event => setWriteAsText(event.target.checked)} /> Write exercises as text
+      </label>}
+      {workout && <WorkoutFields initial={workout} disabled={writeAsText} />}
+      {(!workout || !plan) && <label hidden={!!workout && !writeAsText}>{section.details}
+        <textarea name="details" rows={5} maxLength={detailsLimit} required disabled={!!workout && !writeAsText}
+          placeholder={section.example} defaultValue={plan?.details} />
+      </label>}
       <details className="optional" open={plan?.notes ? true : undefined}><summary>Notes <span className="muted">(optional)</span></summary><textarea aria-label="Notes" name="notes" rows={3} maxLength={4000} defaultValue={plan?.notes} /></details>
       {error && <p className="error" role="alert">{error}</p>}
       <div className="editor-actions"><button className="button" type="button" disabled={saving} onClick={close}>Cancel</button><button className="button primary" disabled={saving}>{saving ? 'Saving…' : 'Save plan'}</button></div>
