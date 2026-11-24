@@ -49,7 +49,7 @@ function ExerciseAnimation({ url, name }: { url: string; name: string }) {
   try { slug = new URL(url).pathname.split('/').filter(Boolean).at(-1) ?? '' } catch {}
   const source = (exerciseMedia as Record<string, string>)[slug]
   if (!source || failed) return null
-  return <img className="exercise-animation" src={new URL(source, 'https://www.kovofitness.com').href}
+  return <img className="exercise-animation" src={source}
     alt={`Animated demonstration of ${name}`} width={160} height={160} loading="lazy"
     decoding="async" referrerPolicy="no-referrer" onError={() => setFailed(true)} />
 }
