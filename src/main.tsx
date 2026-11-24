@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { DragEvent, FormEvent } from 'react'
 import { createRoot } from 'react-dom/client'
+import { createPortal } from 'react-dom'
 import { initializeApp } from 'firebase/app'
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from 'firebase/auth'
 import type { User } from 'firebase/auth'
@@ -44,15 +45,40 @@ function readTheme(key: string): Theme {
   }
 }
 
-function ExerciseAnimation({ url, name }: { url: string; name: string }) {
+function ExerciseAnimation({ url, name, onOpen }: { url: string; name: string; onOpen?: () => void }) {
   const [failed, setFailed] = useState(false)
+  const [expanded, setExpanded] = useState(false)
   let slug = ''
   try { slug = new URL(url).pathname.split('/').filter(Boolean).at(-1) ?? '' } catch {}
   const source = (exerciseMedia as Record<string, string>)[slug]
   if (!source || failed) return null
-  return <img className="exercise-animation" src={source}
-    alt={`Animated demonstration of ${name}`} width={160} height={160} loading="lazy"
-    decoding="async" referrerPolicy="no-referrer" onError={() => setFailed(true)} />
+  return <><button type="button" className="animation-trigger" aria-label={`Enlarge ${name} animation`} onClick={onOpen ?? (() => setExpanded(true))}>
+    <img className="exercise-animation" src={source}
+      alt={`Animated demonstration of ${name}`} width={160} height={160} loading="lazy"
+      decoding="async" referrerPolicy="no-referrer" onError={() => setFailed(true)} />
+    </button>{expanded && <ExercisePreview exercise={{ name, kovo: url, exsercise: '' }} close={() => setExpanded(false)} />}</>
+}
+
+function ExercisePreview({ exercise, close }: { exercise: Exercise; close: () => void }) {
+  const dialog = useRef<HTMLDialogElement>(null)
+  const backdrop = useRef(false)
+  useEffect(() => {
+    const previous = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    dialog.current?.showModal()
+    return () => { document.body.style.overflow = previous }
+  }, [])
+  let slug = ''
+  try { slug = new URL(exercise.kovo).pathname.split('/').filter(Boolean).at(-1) ?? '' } catch {}
+  const source = (exerciseMedia as Record<string, string>)[slug]
+  return createPortal(<dialog ref={dialog} className="exercise-preview" aria-labelledby="exercise-preview-title" onCancel={event => { event.preventDefault(); close() }}
+    onPointerDown={event => { backdrop.current = event.target === event.currentTarget }}
+    onClick={event => { if (backdrop.current && event.target === event.currentTarget) close(); backdrop.current = false }}>
+    <div className="preview-inner"><header><h2 id="exercise-preview-title">{exercise.name}</h2><button autoFocus className="icon-button" aria-label="Close exercise preview" onClick={close}><X size={22} /></button></header>
+      {source && <img className="preview-animation" src={source} alt={`Animated demonstration of ${exercise.name}`} />}
+      <div className="exercise-demos">{demoKeys.filter(key => exercise[key]).map(key => <a className="button" key={key} href={exercise[key]} target="_blank" rel="noopener noreferrer">{demoSources[key].label}</a>)}</div>
+    </div>
+  </dialog>, document.body)
 }
 
 function PlanText({ text }: { text: string }) {
@@ -138,6 +164,7 @@ function useExerciseDrag(onMove: (from: number, to: number) => void) {
 }
 
 function WorkoutDetails({ text, saveOrder }: { text: string; saveOrder: (details: string) => Promise<void> }) {
+  const [preview, setPreview] = useState<Exercise | null>(null)
   const [saving, setSaving] = useState(false)
   const [feedback, setFeedback] = useState('')
   const workout = parseWorkout(text)
@@ -171,8 +198,8 @@ function WorkoutDetails({ text, saveOrder }: { text: string; saveOrder: (details
         <div className="exercise-row">
           {workout.exercises.length > 1 && <span className="exercise-grip" aria-hidden="true"
             title="Drag to reorder" {...drag.handle(index, !saving)}><GripVertical size={17} /></span>}
-          <strong>{exercise.name}</strong>
-          <ExerciseAnimation key={exercise.kovo} url={exercise.kovo} name={exercise.name} />
+          <strong>{exercise.kovo ? <button className="exercise-name" onClick={() => setPreview(exercise)}>{exercise.name}</button> : exercise.name}</strong>
+          <ExerciseAnimation key={exercise.kovo} url={exercise.kovo} name={exercise.name} onOpen={() => setPreview(exercise)} />
           <div className="exercise-demos">
             {demoKeys.filter(key => exercise[key]).map(key => <a key={key} className="demo-link"
               href={exercise[key]} target="_blank" rel="noopener noreferrer"
@@ -191,6 +218,7 @@ function WorkoutDetails({ text, saveOrder }: { text: string; saveOrder: (details
     </ol>
     {workout.coolDown && <div className="workout-phase">Cool-down</div>}
     <div role="status" className="exercise-status">{feedback}</div>
+    {preview && <ExercisePreview exercise={preview} close={() => setPreview(null)} />}
   </div>
 }
 

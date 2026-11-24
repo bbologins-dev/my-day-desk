@@ -158,6 +158,17 @@ nav a[aria-current="page"]::before { content: ""; position: absolute; left: 0; t
 .exercise-row:has(.exercise-animation) .exercise-order { grid-column: 2; }
 .legacy-workout { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; margin-block: 8px 14px; }
 .legacy-workout p { flex: 1 1 10rem; }
+.animation-trigger { display: block; padding: 0; border: 0; background: transparent; border-radius: 8px; cursor: zoom-in; min-width: 0; }
+.animation-trigger img { display: block; }
+.exercise-row .animation-trigger { grid-column: 3; grid-row: 1 / span 3; }
+.exercise-name { padding: 0; border: 0; background: none; text-align: left; font: inherit; color: inherit; cursor: zoom-in; }
+.exercise-name:hover { color: var(--accent); }
+.exercise-preview { width: min(1100px, 96vw); max-width: 96vw; max-height: 94dvh; padding: 0; border-radius: 12px; }
+.preview-inner { padding: 16px; display: grid; gap: 14px; }
+.preview-inner header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.preview-animation { display: block; width: 100%; height: auto; max-height: 72dvh; object-fit: contain; background: white; border-radius: 8px; }
+.preview-inner a { text-decoration: none; }
+.routine-focus .exercise-row .animation-trigger { grid-column: 1 / -1; grid-row: auto; }
 .routine-focus .exercise-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; padding: 0; list-style-position: inside; }
 .routine-focus .exercise-list li { min-width: 0; padding: 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--field); }
 .routine-focus .exercise-row,
