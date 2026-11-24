@@ -275,12 +275,14 @@ function Workspace({ user, logout, signOutError }: { user: User; logout: () => P
   const [loadError, setLoadError] = useState(false)
   const [editor, setEditor] = useState<Plan | 'new' | 'new-pull' | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [focusedRoutine, setFocusedRoutine] = useState<string | null>(null)
   const drawer = useRef<HTMLDialogElement>(null)
   const closeMenuButton = useRef<HTMLButtonElement>(null)
   const pointerOnBackdrop = useRef(false)
   const nativeLightDismiss = 'closedBy' in HTMLDialogElement.prototype
   const section = sections[kind]
   const visiblePlans = plans?.filter(plan => plan.kind === kind)
+  const activeRoutine = kind === 'fitness' ? visiblePlans?.find(plan => plan.id === focusedRoutine) : undefined
   const workoutOrder = ['push', 'pull', 'leg exercises']
   const workoutCards = workoutOrder.flatMap(title => {
     const matches = visiblePlans?.filter(plan => plan.title.trim().toLowerCase() === title) ?? []
@@ -410,17 +412,23 @@ function Workspace({ user, logout, signOutError }: { user: User; logout: () => P
         <button className="button primary" disabled={plans === null} onClick={() => setEditor('new')}><Plus size={18} /> Add {section.singular} plan</button>
       </header>
       {signOutError && <p className="error" role="alert">Sign-out failed. Please try again.</p>}
-      <section className="panel" aria-labelledby="plan-heading">
-        <div className="panel-header"><h2 id="plan-heading">{section.plural}</h2><p>{visiblePlans ? visiblePlans.length + (visiblePlans.length === 1 ? ' plan' : ' plans') : ''}</p></div>
+      <section className={`panel${activeRoutine ? ' routine-focus' : ''}`} aria-labelledby="plan-heading">
+        <div className="panel-header"><h2 id="plan-heading">{activeRoutine ? activeRoutine.title : section.plural}</h2>
+          {activeRoutine ? <button className="button" onClick={() => setFocusedRoutine(null)}>All routines</button>
+            : <p>{visiblePlans ? visiblePlans.length + (visiblePlans.length === 1 ? ' plan' : ' plans') : ''}</p>}</div>
         {loadError ? <p className="error" role="alert">Plans could not be loaded. Refresh the page to try again.</p>
           : !visiblePlans ? <p className="muted" role="status">Loading plans…</p>
           : visiblePlans.length === 0 ? <div className="empty"><span className="mark"><section.icon size={21} /></span><h3>No {section.singular} plans yet</h3><p>Use “Add {section.singular} plan” to write your first one.</p></div>
-          : <div className={kind === 'fitness' ? 'workout-board' : 'plan-list'}
+          : <div className={kind === 'fitness' ? activeRoutine ? 'routine-content' : 'workout-board' : 'plan-list'}
               role={kind === 'fitness' ? 'region' : undefined}
               aria-label={kind === 'fitness' ? 'Workout plan cards' : undefined}
               tabIndex={kind === 'fitness' ? 0 : undefined}>
-            {displayedPlans?.map(plan => plan ? <details className="plan" key={plan.id}>
-            <summary><div className="plan-heading"><strong>{plan.title}</strong>{plan.schedule && <span>{plan.schedule}</span>}</div><ChevronDown size={17} /></summary>
+            {(activeRoutine ? [activeRoutine] : displayedPlans)?.map(plan => plan ? <details className="plan" key={plan.id}
+              open={kind === 'fitness' ? !!activeRoutine : undefined}>
+            <summary onClick={kind === 'fitness' ? event => {
+              event.preventDefault()
+              setFocusedRoutine(activeRoutine ? null : plan.id)
+            } : undefined}><div className="plan-heading"><strong>{plan.title}</strong>{plan.schedule && <span>{plan.schedule}</span>}</div><ChevronDown size={17} /></summary>
             <div className="plan-body"><h3>{section.details}</h3>
               {kind === 'fitness' ? <WorkoutDetails text={plan.details} saveOrder={details => saveExerciseOrder(plan, details)} /> : <PlanText text={plan.details} />}
               {plan.notes && <><h3>Notes</h3><PlanText text={plan.notes} /></>}
