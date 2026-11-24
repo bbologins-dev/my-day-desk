@@ -1,0 +1,21 @@
+{
+  "bench-press-barbell": "/x-media/api/exercise-gifs/barbellbenchpress_wide_m.gif",
+  "incline-bench-press-dumbbell": "/x-media/api/exercise-gifs/inclinedumbbellpress_wide_m.gif",
+  "dumbbell-decline-bench-press": "/x-media/cdn/exercise-animations/dumbbellDeclineBenchPress.gif",
+  "chest-flyes-dumbbell": "/x-media/api/exercise-gifs/dumbbellflyes_wide_m.gif",
+  "squeeze-press": "/x-media/cdn/exercise-animations/dumbbellSqueezePressOnFloor.gif",
+  "dumbbell-seated-shoulder-press": "/x-media/cdn/exercise-animations/dumbbellSeatedShoulderPress.gif",
+  "lateral-raise-dumbbell": "/x-media/cdn/exercise-gifs/dumbbelllateralraise_wide_f.gif",
+  "dumbbell-seated-single-arm-overhead-triceps-extension": "/x-media/cdn/exercise-animations/dumbbellSeatedSingleArmOverheadTricepsExtension.gif",
+  "dumbbell-one-arm-kickback": "/x-media/cdn/exercise-animations/dumbbellOneArmKickback.gif",
+  "front-plank": "/x-media/api/exercise-gifs/plank_wide_m.gif",
+  "bicycle-crunches": "/x-media/api/exercise-gifs/bicyclecrunches_wide_m.gif",
+  "burpee": "/x-media/cdn/exercise-gifs/burpees_wide_m.gif",
+  "squat-barbell": "/x-media/api/exercise-gifs/barbellbacksquat_wide_m.gif",
+  "push-up": "/x-media/api/exercise-gifs/pushup_wide_m.gif",
+  "squat": "/x-media/api/exercise-gifs/bodyweightsquat_wide_m.gif",
+  "lunge": "/x-media/api/exercise-gifs/bodyweightlunge_wide_m.gif",
+  "mountain-climbers": "/x-media/api/exercise-gifs/mountainclimbers_wide_m.gif",
+  "crunch": "/x-media/api/exercise-gifs/crunch_wide_m.gif",
+  "lying-leg-raise": "/x-media/cdn/exercise-animations/lyingLegRaise.gif"
+}

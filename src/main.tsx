@@ -8,6 +8,7 @@ import { collection, doc, getFirestore, onSnapshot, orderBy, query, runTransacti
 import { ArrowDown, ArrowUp, ChevronDown, Dumbbell, GripVertical, LayoutGrid, Menu, Moon, PanelLeftClose, PanelLeftOpen, Pencil, Plus, Sun, Trash2, Utensils, X } from 'lucide-react'
 import { blankExercise, demoKeys, demoSources, detailsLimit, formatWorkout, isDemoUrl, parseWorkout } from './workout'
 import type { DemoSource, Exercise, Workout } from './workout'
+import exerciseMedia from './exercise-media.json'
 import './style.css'
 
 const config = {
@@ -40,6 +41,17 @@ function readTheme(key: string): Theme {
   } catch {
     return 'dark'
   }
+}
+
+function ExerciseAnimation({ url, name }: { url: string; name: string }) {
+  const [failed, setFailed] = useState(false)
+  let slug = ''
+  try { slug = new URL(url).pathname.split('/').filter(Boolean).at(-1) ?? '' } catch {}
+  const source = (exerciseMedia as Record<string, string>)[slug]
+  if (!source || failed) return null
+  return <img className="exercise-animation" src={new URL(source, 'https://www.kovofitness.com').href}
+    alt={`Animated demonstration of ${name}`} width={160} height={160} loading="lazy"
+    decoding="async" referrerPolicy="no-referrer" onError={() => setFailed(true)} />
 }
 
 function PlanText({ text }: { text: string }) {
@@ -144,7 +156,12 @@ function WorkoutDetails({ text, saveOrder }: { text: string; saveOrder: (details
     }
   }
   const drag = useExerciseDrag((from, to) => void move(from, to))
-  if (!workout) return <PlanText text={text} />
+  if (!workout) {
+    const source = text.match(/https?:\/\/(?:www\.)?kovofitness\.com\/exercises\/[^\s]+/)?.[0]
+    return <div className="legacy-workout"><PlanText text={text} />
+      {source && <ExerciseAnimation key={source} url={source} name={text.split('\n')[0]} />}
+    </div>
+  }
 
   return <div className="workout-details">
     {workout.warmUp && <div className="workout-phase">Warm-up</div>}
@@ -154,6 +171,7 @@ function WorkoutDetails({ text, saveOrder }: { text: string; saveOrder: (details
           {workout.exercises.length > 1 && <span className="exercise-grip" aria-hidden="true"
             title="Drag to reorder" {...drag.handle(index, !saving)}><GripVertical size={17} /></span>}
           <strong>{exercise.name}</strong>
+          <ExerciseAnimation key={exercise.kovo} url={exercise.kovo} name={exercise.name} />
           <div className="exercise-demos">
             {demoKeys.filter(key => exercise[key]).map(key => <a key={key} className="demo-link"
               href={exercise[key]} target="_blank" rel="noopener noreferrer"
