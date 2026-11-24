@@ -84,6 +84,19 @@ nav a[aria-current="page"]::before { content: ""; position: absolute; left: 0; t
 .button.primary { background: var(--solid); color: var(--on-solid); border-color: transparent; }
 .button.primary:hover:not(:disabled) { filter: brightness(1.12); }
 .panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 17px; }
+.fitness-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+.fitness-tabs [aria-pressed="true"] { background: var(--accent-bg); color: var(--accent); border-color: var(--accent); }
+.library-search { display: grid; gap: 6px; max-width: 32rem; margin-bottom: 18px; }
+.library-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr)); gap: 12px; }
+.library-card { display: flex; flex-direction: column; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--field); }
+.library-card .panel-header { margin: 0; }
+.library-card h3 { font-size: 17px; }
+.library-card a { color: var(--accent); text-underline-offset: 3px; }
+.library-card p { font-size: 14px; }
+.library-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.library-tags span { padding: 4px 8px; border-radius: 5px; background: var(--accent-bg); color: var(--accent); font-size: 12px; }
+.library-actions { display: flex; gap: 8px; align-items: center; margin-top: auto; }
+.library-notice { margin-bottom: 12px; }
 .panel-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; }
 .panel-header p, .empty p { color: var(--muted); font-size: 13px; }
 .empty { display: grid; justify-items: center; gap: 10px; padding: 38px 10px; text-align: center; border: 1px dashed var(--line); border-radius: 9px; }

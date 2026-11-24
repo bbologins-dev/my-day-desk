@@ -35,5 +35,17 @@ service cloud.firestore {
       allow update: if isInvitedOwner(userId) && validPlan()
         && request.resource.data.kind == resource.data.kind;
     }
+    match /users/{userId}/fitnessLibrary/{websiteId} {
+      allow get, list: if isInvitedOwner(userId);
+      allow create, update: if isInvitedOwner(userId)
+        && request.resource.data.keys().hasOnly(['name', 'url', 'description', 'usefulness', 'tags', 'favourite', 'removed', 'updatedAt'])
+        && request.resource.data.name is string && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 100
+        && request.resource.data.url is string && request.resource.data.url.size() <= 2000 && request.resource.data.url.matches('https?://.+')
+        && request.resource.data.description is string && request.resource.data.description.size() > 0 && request.resource.data.description.size() <= 2000
+        && request.resource.data.usefulness is string && request.resource.data.usefulness.size() > 0 && request.resource.data.usefulness.size() <= 2000
+        && request.resource.data.tags is string && request.resource.data.tags.size() <= 300
+        && request.resource.data.favourite is bool && request.resource.data.removed is bool
+        && request.resource.data.updatedAt == request.time;
+    }
   }
 }

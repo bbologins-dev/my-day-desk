@@ -9,6 +9,7 @@ import { ArrowDown, ArrowUp, ChevronDown, Dumbbell, GripVertical, LayoutGrid, Me
 import { blankExercise, demoKeys, demoSources, detailsLimit, formatWorkout, isDemoUrl, parseWorkout } from './workout'
 import type { DemoSource, Exercise, Workout } from './workout'
 import exerciseMedia from './exercise-media.json'
+import { FitnessLibrary } from './FitnessLibrary'
 import './style.css'
 
 const config = {
@@ -276,6 +277,7 @@ function Workspace({ user, logout, signOutError }: { user: User; logout: () => P
   const [editor, setEditor] = useState<Plan | 'new' | 'new-pull' | null>(null)
   const [drawerOpen, setDrawerOpen] = useState(false)
   const [focusedRoutine, setFocusedRoutine] = useState<string | null>(null)
+  const [fitnessTab, setFitnessTab] = useState<'workouts' | 'library'>('workouts')
   const drawer = useRef<HTMLDialogElement>(null)
   const closeMenuButton = useRef<HTMLButtonElement>(null)
   const pointerOnBackdrop = useRef(false)
@@ -409,10 +411,14 @@ function Workspace({ user, logout, signOutError }: { user: User; logout: () => P
     <main className="content" id="main-content">
       <header className="page-header">
         <div><h1>{section.title}</h1><p>{section.description}</p></div>
-        <button className="button primary" disabled={plans === null} onClick={() => setEditor('new')}><Plus size={18} /> Add {section.singular} plan</button>
+        {(kind !== 'fitness' || fitnessTab === 'workouts') && <button className="button primary" disabled={plans === null} onClick={() => setEditor('new')}><Plus size={18} /> Add {section.singular} plan</button>}
       </header>
       {signOutError && <p className="error" role="alert">Sign-out failed. Please try again.</p>}
-      <section className={`panel${activeRoutine ? ' routine-focus' : ''}`} aria-labelledby="plan-heading">
+      {kind === 'fitness' && <div className="fitness-tabs" role="group" aria-label="Fitness sections">
+        <button className="button" aria-pressed={fitnessTab === 'workouts'} onClick={() => setFitnessTab('workouts')}>Workouts</button>
+        <button className="button" aria-pressed={fitnessTab === 'library'} onClick={() => setFitnessTab('library')}>Library</button>
+      </div>}
+      {kind === 'fitness' && fitnessTab === 'library' && db ? <FitnessLibrary db={db} uid={user.uid} /> : <section className={`panel${activeRoutine ? ' routine-focus' : ''}`} aria-labelledby="plan-heading">
         <div className="panel-header"><h2 id="plan-heading">{activeRoutine ? activeRoutine.title : section.plural}</h2>
           {activeRoutine ? <button className="button" onClick={() => setFocusedRoutine(null)}>All routines</button>
             : <p>{visiblePlans ? visiblePlans.length + (visiblePlans.length === 1 ? ' plan' : ' plans') : ''}</p>}</div>
@@ -437,7 +443,7 @@ function Workspace({ user, logout, signOutError }: { user: User; logout: () => P
             <h3>Pull</h3>
             <button className="button" onClick={() => setEditor('new-pull')}><Plus size={15} /> Add Pull plan</button>
           </div>)}</div>}
-      </section>
+      </section>}
     </main>
     {editor && <PlanEditor kind={kind} plan={typeof editor === 'string' ? undefined : editor}
       initialTitle={editor === 'new-pull' ? 'Pull' : undefined} close={() => setEditor(null)} save={save} />}
